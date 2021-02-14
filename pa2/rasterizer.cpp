@@ -190,22 +190,53 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t) {
     {
         for (int j = minY; j < maxY; j++)
         {
-            if(insideTriangle(i+0.5f, j+0.5f, t.v))
-            {
-                //get the depth of(i+0.5f, j+0.5f)
-                //If so, use the following code to get the interpolated z value.
-                auto[alpha, beta, gamma] = computeBarycentric2D(i+0.5f, j+0.5f, t.v);
-                float w_reciprocal = 1.0/(alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
-                float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
-                z_interpolated *= w_reciprocal;
+            float depth = 0;
+            Vector3f color = Vector3f(0,0,0);
+            std::vector<Vector2f> children = {Vector2f(i+0.25f,j+0.75f),Vector2f(i+0.25f,j+0.25f),Vector2f(i+0.75f,j+0.25f),Vector2f(i+0.75f,j+0.75f)};
 
-                auto index = get_index(i,j);
-                if( depth_buf[index] > z_interpolated)
+            bool inside = false;
+            for(auto &child : children)
+            {
+                if(insideTriangle(child.x(),child.y(),t.v))
                 {
-                    depth_buf[index] = z_interpolated;
-                    set_pixel(Vector3f(i,j,0),255*t.color[0]);
+                    auto[alpha, beta, gamma] = computeBarycentric2D(child.x(), child.y(), t.v);
+                    float w_reciprocal = 1.0/(alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+                    float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+                    z_interpolated *= w_reciprocal;
+
+                    depth = z_interpolated;
+                    color += t.color[0] * 0.25f;
+                    inside = true;
                 }
             }
+
+            if(!inside)
+                continue;
+
+            auto index = get_index(i,j);
+            if( depth_buf[index] > depth)
+            {
+                depth_buf[index] = depth;
+                set_pixel(Vector3f(i,j,0),255*color);
+            }
+            
+            // if(insideTriangle(i+0.5f, j+0.5f, t.v))
+            // {
+                
+            //     //get the depth of(i+0.5f, j+0.5f)
+            //     //If so, use the following code to get the interpolated z value.
+            //     auto[alpha, beta, gamma] = computeBarycentric2D(i+0.5f, j+0.5f, t.v);
+            //     float w_reciprocal = 1.0/(alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+            //     float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+            //     z_interpolated *= w_reciprocal;
+
+            //     auto index = get_index(i,j);
+            //     if( depth_buf[index] > z_interpolated)
+            //     {
+            //         depth_buf[index] = z_interpolated;
+            //         set_pixel(Vector3f(i,j,0),255*t.color[0]);
+            //     }
+            // }
         }
     }
 }
