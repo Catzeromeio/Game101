@@ -120,6 +120,9 @@ void rst::rasterizer::draw(pos_buf_id pos_buffer, ind_buf_id ind_buffer, col_buf
     auto& ind = ind_buf[ind_buffer.ind_id];
     auto& col = col_buf[col_buffer.col_id];
 
+    float f1 = (100 - 0.1) / 2.0;
+    float f2 = (100 + 0.1) / 2.0;
+
     Eigen::Matrix4f mvp = projection * view * model;
     for (auto& i : ind)
     {
@@ -138,7 +141,7 @@ void rst::rasterizer::draw(pos_buf_id pos_buffer, ind_buf_id ind_buffer, col_buf
         {
             vert.x() = 0.5*width*(vert.x()+1.0);
             vert.y() = 0.5*height*(vert.y()+1.0);
-            vert.z() = vert.z();
+            vert.z() = vert.z() * f1 + f2;
         }
 
         for (int i = 0; i < 3; ++i)
@@ -197,7 +200,7 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t) {
                 z_interpolated *= w_reciprocal;
 
                 auto index = get_index(i,j);
-                if( depth_buf[index] <= z_interpolated)
+                if( depth_buf[index] > z_interpolated)
                 {
                     depth_buf[index] = z_interpolated;
                     set_pixel(Vector3f(i,j,0),255*t.color[0]);
@@ -230,7 +233,7 @@ void rst::rasterizer::clear(rst::Buffers buff)
     }
     if ((buff & rst::Buffers::Depth) == rst::Buffers::Depth)
     {
-        std::fill(depth_buf.begin(), depth_buf.end(), -std::numeric_limits<float>::infinity());
+        std::fill(depth_buf.begin(), depth_buf.end(), std::numeric_limits<float>::infinity());
     }
 }
 
@@ -247,10 +250,6 @@ int rst::rasterizer::get_index(int x, int y)
 
 void rst::rasterizer::set_pixel(const Eigen::Vector3f& point, const Eigen::Vector3f& color)
 {
-    //old index: auto ind = point.y() + point.x() * width;
-    auto ind = (height-1-point.y())*width + point.x();
+    auto ind = get_index(point.x(),point.y());
     frame_buf[ind] = color;
-
 }
-
-// clang-format on
