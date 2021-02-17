@@ -28,12 +28,31 @@ Eigen::Matrix4f get_model_matrix(float rotation_angle)
     return model;
 }
 
+// 右手坐标系，看向+z,zFar > zNear > 0, zNear 和 zFar 为远近平面到观察者原点的距离
 Eigen::Matrix4f get_projection_matrix(float eye_fov, float aspect_ratio, float zNear, float zFar)
 {
-    // TODO: Copy-paste your implementation from the previous assignment.
-    Eigen::Matrix4f projection;
+    auto h = 2*zNear * tan((eye_fov/2)*(MY_PI/180.0));
+    auto w = h * aspect_ratio;
 
-    return projection;
+    Eigen::Matrix4f per;
+    per << -zNear,0,0,0,
+           0,-zNear,0,0,
+           0,0, -(zNear + zFar),-zNear*zFar,
+           0,0,1,0;
+
+    Eigen::Matrix4f trans;
+    trans << 1,0,0,0,
+           0,1,0,0,
+           0,0,1,(zFar + zNear)/2,
+           0,0,0,1;
+
+    Eigen::Matrix4f ort;
+    ort << 2/w,0,0,0,
+           0,2/h,0,0,
+           0,0,2/(zFar - zNear),0,
+           0,0,0,1;
+
+    return  ort * trans * per;
 }
 
 int main(int argc, const char** argv)
