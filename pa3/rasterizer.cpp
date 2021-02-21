@@ -149,17 +149,25 @@ auto to_vec4(const Eigen::Vector3f &v3, float w = 1.0f)
 
 static bool insideTriangle(int x, int y, const Vector4f *_v)
 {
+    Vector3f p(x, y, 1.);
+
     Vector3f v[3];
     for (int i = 0; i < 3; i++)
         v[i] = {_v[i].x(), _v[i].y(), 1.0};
+
+    auto v0 = v[1] - v[0];
+    auto p0 = p - v[0];
+    auto v1 = v[2] - v[1];
+    auto p1 = p - v[1];
+    auto v2 = v[0] - v[2];
+    auto p2 = p - v[2];
+
     Vector3f f0, f1, f2;
-    f0 = v[1].cross(v[0]);
-    f1 = v[2].cross(v[1]);
-    f2 = v[0].cross(v[2]);
-    Vector3f p(x, y, 1.);
-    if ((p.dot(f0) * f0.dot(v[2]) > 0) && (p.dot(f1) * f1.dot(v[0]) > 0) && (p.dot(f2) * f2.dot(v[1]) > 0))
-        return true;
-    return false;
+    f0 = v0.cross(p0);
+    f1 = v1.cross(p1);
+    f2 = v2.cross(p2);
+
+    return (f0.dot(f1) >= 0) && (f0.dot(f2) >= 0);
 }
 
 static std::tuple<float, float, float> computeBarycentric2D(float x, float y, const Vector4f *v)
@@ -288,6 +296,7 @@ void rst::rasterizer::rasterize_triangle(const Triangle &t, const std::array<Eig
                 //get the depth of(i+0.5f, j+0.5f)
                 //If so, use the following code to get the interpolated z value.
                 auto [alpha, beta, gamma] = computeBarycentric2D(i + 0.5f, j + 0.5f, t.v);
+
                 float w_reciprocal = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
                 float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
                 z_interpolated *= w_reciprocal;
@@ -296,22 +305,20 @@ void rst::rasterizer::rasterize_triangle(const Triangle &t, const std::array<Eig
                 if (depth_buf[index] > z_interpolated)
                 {
                     depth_buf[index] = z_interpolated;
-                    set_pixel(Vector2i(i, j), 255 * t.color[0]);
+
+                    auto interpolated_color = alpha * t.color[0] + beta * t.color[1] + gamma * t.color[2];
+                    auto interpolated_normal = alpha * t.normal[0] + beta * t.normal[1] + gamma * t.normal[2];
+                    auto interpolated_texcoords = alpha * t.tex_coords[0] + beta * t.tex_coords[1] + gamma * t.tex_coords[2];
+                    auto interpolated_shadingcoords = alpha * view_pos[0] + beta * view_pos[1] + gamma * view_pos[2];
+
+                    fragment_shader_payload payload(interpolated_color, interpolated_normal.normalized(), interpolated_texcoords, texture ? &*texture : nullptr);
+                    payload.view_pos = interpolated_shadingcoords;
+                    auto pixel_color = fragment_shader(payload);
+                    set_pixel(Vector2i(i, j), pixel_color);
                 }
             }
         }
     }
-
-    // TODO: Interpolate the attributes:
-    // auto interpolated_color
-    // auto interpolated_normal
-    // auto interpolated_texcoords
-    // auto interpolated_shadingcoords
-
-    // Use: fragment_shader_payload payload( interpolated_color, interpolated_normal.normalized(), interpolated_texcoords, texture ? &*texture : nullptr);
-    // Use: payload.view_pos = interpolated_shadingcoords;
-    // Use: Instead of passing the triangle's color directly to the frame buffer, pass the color to the shaders first to get the final color;
-    // Use: auto pixel_color = fragment_shader(payload);
 }
 
 void rst::rasterizer::set_model(const Eigen::Matrix4f &m)
