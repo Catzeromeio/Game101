@@ -104,8 +104,9 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload &payload)
     Eigen::Vector3f return_color = {0, 0, 0};
     if (payload.texture)
     {
-        // TODO: Get the texture value at the texture coordinates of the current fragment
+        return_color = payload.texture->getColor(payload.tex_coords.x(), payload.tex_coords.y());
     }
+
     Eigen::Vector3f texture_color;
     texture_color << return_color.x(), return_color.y(), return_color.z();
 
@@ -126,12 +127,21 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload &payload)
     Eigen::Vector3f point = payload.view_pos;
     Eigen::Vector3f normal = payload.normal;
 
-    Eigen::Vector3f result_color = {0, 0, 0};
+    Vector3f v = (eye_pos - point).normalized();
 
+    Eigen::Vector3f result_color = {0, 0, 0};
     for (auto &light : lights)
     {
-        // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular*
-        // components are. Then, accumulate that result on the *result_color* object.
+        Vector3f l = (light.position - point).normalized();
+        float rr = (light.position - point).squaredNorm();
+        Vector3f v = (eye_pos - point).normalized();
+        Vector3f h = (v + l).normalized();
+        float mndl = MAX(0, normal.dot(l));
+        float mnhl = MAX(0, normal.dot(h));
+
+        auto lcolor = kd.cwiseProduct(light.intensity / rr) * mndl + ks.cwiseProduct(light.intensity / rr) * std::pow(mnhl, p) + ka.cwiseProduct(amb_light_intensity);
+
+        result_color += lcolor;
     }
 
     return result_color * 255.f;
@@ -156,11 +166,21 @@ Eigen::Vector3f phong_fragment_shader(const fragment_shader_payload &payload)
     Eigen::Vector3f point = payload.view_pos;
     Eigen::Vector3f normal = payload.normal;
 
+    Vector3f v = (eye_pos - point).normalized();
+
     Eigen::Vector3f result_color = {0, 0, 0};
     for (auto &light : lights)
     {
-        // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular*
-        // components are. Then, accumulate that result on the *result_color* object.
+        Vector3f l = (light.position - point).normalized();
+        float rr = (light.position - point).squaredNorm();
+        Vector3f v = (eye_pos - point).normalized();
+        Vector3f h = (v + l).normalized();
+        float mndl = MAX(0, normal.dot(l));
+        float mnhl = MAX(0, normal.dot(h));
+
+        auto lcolor = kd.cwiseProduct(light.intensity / rr) * mndl + ks.cwiseProduct(light.intensity / rr) * std::pow(mnhl, p) + ka.cwiseProduct(amb_light_intensity);
+
+        result_color += lcolor;
     }
 
     return result_color * 255.f;
@@ -278,10 +298,10 @@ int main(int argc, const char **argv)
 
     rst::rasterizer r(700, 700);
 
-    auto texture_path = "hmap.jpg";
+    auto texture_path = "spot_texture.png";
     r.set_texture(Texture(obj_path + texture_path));
 
-    std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = normal_fragment_shader;
+    std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = texture_fragment_shader;
 
     if (argc >= 2)
     {
