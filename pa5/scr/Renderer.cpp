@@ -3,6 +3,7 @@
 #include "Renderer.hpp"
 #include "Scene.hpp"
 #include <optional>
+#include "bitmap_image.hpp"
 
 inline float deg2rad(const float &deg)
 { return deg * M_PI/180.0; }
@@ -212,8 +213,11 @@ void Renderer::Render(const Scene& scene)
 {
     std::vector<Vector3f> framebuffer(scene.width * scene.height);
 
-    float scale = std::tan(deg2rad(scene.fov * 0.5f));
     float imageAspectRatio = scene.width / (float)scene.height;
+    float height = 2 * std::tan(deg2rad(scene.fov * 0.5f));
+    float width = height * imageAspectRatio;
+
+    float scale = height / scene.height;
 
     // Use this variable as the eye position to start your rays.
     Vector3f eye_pos(0);
@@ -222,29 +226,41 @@ void Renderer::Render(const Scene& scene)
     {
         for (int i = 0; i < scene.width; ++i)
         {
+            m = j * scene.width + i;
+
             // generate primary ray direction
-            float x = 0;
-            float y = 0;
-            // TODO: Find the x and y positions of the current pixel to get the direction
-            // vector that passes through it.
-            // Also, don't forget to multiply both of them with the variable *scale*, and
-            // x (horizontal) variable with the *imageAspectRatio*            
+            float x = (i + 0.5f - scene.width/2.0) * scale;
+            float y = (j + 0.5f - scene.height/2.0) * scale;
 
             Vector3f dir = Vector3f(x, y, -1); // Don't forget to normalize this direction!
             framebuffer[m++] = castRay(eye_pos, dir, scene, 0);
         }
+
         UpdateProgress(j / (float)scene.height);
     }
 
     // save framebuffer to file
-    FILE* fp = fopen("binary.ppm", "wb");
-    (void)fprintf(fp, "P6\n%d %d\n255\n", scene.width, scene.height);
-    for (auto i = 0; i < scene.height * scene.width; ++i) {
-        static unsigned char color[3];
-        color[0] = (char)(255 * clamp(0, 1, framebuffer[i].x));
-        color[1] = (char)(255 * clamp(0, 1, framebuffer[i].y));
-        color[2] = (char)(255 * clamp(0, 1, framebuffer[i].z));
-        fwrite(color, 1, 3, fp);
+    std::string file_name("output.bmp");
+
+    bitmap_image image = bitmap_image(file_name);
+
+    if(!image)
+         image = bitmap_image(scene.width, scene.height);
+
+    int index = 0;
+    for (int j = 0; j < scene.height; ++j)
+    {
+        for (int i = 0; i < scene.width; ++i)
+        {
+            index = j * scene.width + i;
+
+			auto r = (char)(255 * clamp(0, 1, framebuffer[index].x));
+			auto g = (char)(255 * clamp(0, 1, framebuffer[index].y));
+			auto b = (char)(255 * clamp(0, 1, framebuffer[index].z));
+
+            image.set_pixel(i,j,r,g,b);
+        }
     }
-    fclose(fp);    
+
+    image.save_image(file_name);
 }
