@@ -9,6 +9,7 @@
     <ClInclude Include="scr\Sphere.hpp" />
     <ClInclude Include="scr\Triangle.hpp" />
     <ClInclude Include="scr\Vector.hpp" />
+    <ClInclude Include="scr\bitmap_image.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="scr\main.cpp" />

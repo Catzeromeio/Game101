@@ -140,6 +140,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="scr\bitmap_image.hpp" />
     <ClInclude Include="scr\global.hpp" />
     <ClInclude Include="scr\Light.hpp" />
     <ClInclude Include="scr\Object.hpp" />
